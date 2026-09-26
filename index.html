@@ -144,7 +144,7 @@ body.viewer-mode #linkError{background:var(--surface); border:1px solid var(--bo
 
 <div id="toast">Link disalin</div>
 
-<footer id="siteFooter"><a href="https://filemjepang.github.io/YFV/" id="footerHome">YourFavVideo</a> © 2026 · SB99</footer>
+<footer id="siteFooter"><a href="https://filemjepang.github.io/YFV/" id="footerHome">YourFavVideo</a> © 2026</footer>
 
 <script>
 const form = document.getElementById('form');
@@ -227,7 +227,7 @@ function render(src){
     video.controls = true;
     video.playsInline = true;
     video.disablePictureInPicture = true;
-    // Sembunyiin tombol download di kontrol bawaan browser
+    // Sembunyiin tombol download di kontrol bawaan browser (tetep ada tombol download custom di bawah)
     video.setAttribute('controlsList', 'nodownload noremoteplayback');
     video.addEventListener('contextmenu', e => e.preventDefault());
     video.addEventListener('error', showPlayerError);
@@ -259,6 +259,24 @@ function showToast(msg){
   showToast._t = setTimeout(()=>toast.classList.remove('show'), 1800);
 }
 
+// Fullscreen video cuma ngegedin ke orientasi layar yang lagi aktif, ga otomatis
+// muter device. Di Android Chrome (dkk) kita perlu minta lock ke landscape secara
+// eksplisit. Di iOS Safari, player native-nya udah handle rotasi sendiri.
+function isLandscapeMedia(el){
+  if(el.videoWidth && el.videoHeight) return el.videoWidth >= el.videoHeight;
+  return true; // metadata belum ke-load, asumsikan landscape (kasus paling umum)
+}
+document.addEventListener('fullscreenchange', function(){
+  const fsEl = document.fullscreenElement;
+  if(fsEl && fsEl.tagName === 'VIDEO' && isLandscapeMedia(fsEl)){
+    if(screen.orientation && screen.orientation.lock){
+      screen.orientation.lock('landscape').catch(()=>{ /* browser/OS ga izinin, biarin aja */ });
+    }
+  } else if(!fsEl && screen.orientation && screen.orientation.unlock){
+    try{ screen.orientation.unlock(); }catch(e){}
+  }
+});
+
 form.addEventListener('submit', function(e){
   e.preventDefault();
   const src = extractSrc(srcInput.value);
@@ -275,7 +293,8 @@ form.addEventListener('submit', function(e){
   const token = encodeToken({src});
   const shareLink = location.origin + location.pathname + '?d=' + token;
   form.style.display = 'none';
-  render(src);
+  previewSection.style.display = 'none';
+  result.style.display = 'block';
   shareUrl.value = shareLink;
 });
 
