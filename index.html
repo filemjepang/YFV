@@ -273,6 +273,13 @@ themeGroup.addEventListener('click', function(e){
   const btn = e.target.closest('button');
   if(!btn) return;
   document.documentElement.setAttribute('data-theme', btn.dataset.v);
+  showToast('Tema: ' + btn.textContent.trim());
+});
+
+ratioGroup.addEventListener('click', function(e){
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  showToast('Rasio: ' + btn.textContent.trim());
 });
 
 function updateAlignAvailability(){
@@ -365,13 +372,22 @@ form.addEventListener('submit', function(e){
 
 copyBtn.addEventListener('click', function(){
   shareUrl.select();
-  const done = () => showToast('Link disalin');
-  if(navigator.clipboard){
-    navigator.clipboard.writeText(shareUrl.value).then(done).catch(()=>{
-      document.execCommand('copy'); done();
-    });
+  const showSuccess = () => showToast('Link disalin');
+  const showFailure = () => showToast('Gagal menyalin, salin manual ya');
+
+  function fallbackCopy(){
+    try{
+      const ok = document.execCommand('copy');
+      ok ? showSuccess() : showFailure();
+    }catch(e){
+      showFailure();
+    }
+  }
+
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(shareUrl.value).then(showSuccess).catch(fallbackCopy);
   } else {
-    document.execCommand('copy'); done();
+    fallbackCopy();
   }
 });
 
