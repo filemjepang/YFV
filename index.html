@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>YourFavVideo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#121214; --surface:#1a1b1e; --text:#ece7de; --muted:#8a877f;
+  --accent:#d4a656; --border:rgba(255,255,255,.09); --grid:rgba(255,255,255,.05);
+  --radius:3px;
+}
+:root[data-theme="light"]{
+  --bg:#eef1ee; --surface:#ffffff; --text:#152018; --muted:#5c6b62;
+  --accent:#2f6b52; --border:#d7ddd3; --grid:rgba(20,40,25,.06);
+}
+:root[data-theme="pink"]{
+  --bg:#f7e9ee; --surface:#ffffff; --text:#2b1620; --muted:#8a6472;
+  --accent:#c23572; --border:#edc9d6; --grid:rgba(194,53,114,.08);
+}
+:root[data-theme="monochrome"]{
+  --bg:#e7e7e5; --surface:#ffffff; --text:#131313; --muted:#6e6e6e;
+  --accent:#131313; --border:#d0d0ce; --grid:rgba(0,0,0,.06);
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0; position:relative; background:var(--bg); color:var(--text);
+  font-family:'IBM Plex Sans',sans-serif;
+  padding:40px 20px calc(88px + env(safe-area-inset-bottom,0px));
+  padding-top:calc(40px + env(safe-area-inset-top,0px));
+  display:flex; justify-content:center;
+  transition:background .25s ease,color .25s ease;
+  overflow-x:hidden;
+}
+body::before{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background-image:
+    repeating-linear-gradient(0deg, var(--grid) 0 1px, transparent 1px 44px),
+    repeating-linear-gradient(90deg, var(--grid) 0 1px, transparent 1px 44px),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.35'/></svg>");
+  background-size:44px 44px, 44px 44px, 140px 140px;
+  mix-blend-mode:overlay;
+  transition:background .25s ease;
+}
+.wrap{position:relative; z-index:1; width:100%; max-width:720px;}
+.brand{margin-bottom:28px;}
+.brand h1{
+  font-family:'IBM Plex Sans',sans-serif; font-weight:700;
+  font-size:28px; margin:0; letter-spacing:-.3px;
+}
+
+.card{
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:24px; margin-bottom:20px; position:relative;
+}
+label{display:block; font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted); margin-bottom:8px;}
+.field{margin-bottom:20px;}
+input[type=text]{
+  width:100%; padding:12px 13px; border-radius:var(--radius); border:1px solid var(--border);
+  background:var(--bg); color:var(--text); font-family:'IBM Plex Mono',monospace; font-size:13px;
+}
+input[type=text]:focus{outline:none; border-color:var(--accent);}
+input[type=text].invalid{border-color:#c0392b;}
+.field-error{display:none; color:#c0392b; font-size:12px; margin:7px 0 0; font-family:'IBM Plex Sans',sans-serif;}
+.field-error.show{display:block;}
+
+.segmented{display:flex; flex-wrap:wrap; gap:6px;}
+.segmented button{
+  padding:8px 13px; border-radius:var(--radius); border:1px solid var(--border); background:transparent;
+  color:var(--text); font-size:13px; font-family:inherit; cursor:pointer;
+}
+.segmented button.active{background:var(--accent); border-color:var(--accent); color:var(--surface); font-weight:500;}
+#alignGroup.disabled button{opacity:.35; cursor:not-allowed; pointer-events:none;}
+.themebtn{display:flex; align-items:center; gap:7px;}
+.dot{width:9px; height:9px; border-radius:50%; display:inline-block; flex:none;}
+
+button.submit{
+  width:100%; padding:13px; border:none; border-radius:var(--radius); background:var(--accent);
+  color:var(--surface); font-weight:600; font-size:14px; cursor:pointer; font-family:inherit;
+  margin-top:2px;
+}
+button.submit:hover{opacity:.9;}
+
+#result{display:none;}
+.frame{
+  position:relative; padding:18px; margin:0 auto 16px; min-width:min(300px,100%);
+}
+.corner{position:absolute; width:18px; height:18px; border:2px solid var(--accent);}
+.corner.tl{top:0; left:0; border-right:0; border-bottom:0;}
+.corner.tr{top:0; right:0; border-left:0; border-bottom:0;}
+.corner.bl{bottom:0; left:0; border-right:0; border-top:0;}
+.corner.br{bottom:0; right:0; border-left:0; border-top:0;}
+.player{width:100%; background:#000; overflow:hidden;}
+.player iframe{width:100%; height:100%; display:block; border:0;}
+.title{
+  font-family:'IBM Plex Sans',sans-serif; font-weight:700;
+  font-size:28px; line-height:1.3; margin:20px auto 22px; color:var(--text);
+}
+.title:empty{display:none; margin:0;}
+
+.linkrow{display:flex; gap:8px;}
+.linkrow input{font-size:12px;}
+.copybtn{
+  flex:none; padding:11px 16px; border-radius:var(--radius); border:1px solid var(--border);
+  background:transparent; color:var(--text); font-family:'IBM Plex Mono',monospace;
+  font-size:12px; cursor:pointer;
+}
+.copybtn:hover{border-color:var(--accent); color:var(--accent);}
+
+#toast{
+  position:fixed; left:50%; top:calc(24px + env(safe-area-inset-top,0px));
+  transform:translate(-50%,-20px);
+  background:var(--text); color:var(--bg); padding:11px 18px; border-radius:var(--radius);
+  font-family:'IBM Plex Mono',monospace; font-size:12px; opacity:0; pointer-events:none;
+  transition:opacity .2s ease, transform .2s ease; z-index:10;
+}
+#toast.show{opacity:1; transform:translate(-50%,0);}
+
+#siteFooter{
+  position:fixed; left:0; right:0; bottom:0; z-index:5;
+  background:var(--surface); border-top:1px solid var(--border);
+  padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));
+  text-align:center; font-family:'IBM Plex Mono',monospace; font-size:11px;
+  color:var(--muted); transition:background .25s ease, color .25s ease;
+}
+#siteFooter a{color:var(--text); text-decoration:none; font-weight:500;}
+#siteFooter a:hover{color:var(--accent); text-decoration:underline;}
+
+body.viewer-mode{padding:20px; padding-bottom:calc(68px + env(safe-area-inset-bottom,0px)); align-items:center;}
+body.viewer-mode .wrap{max-width:900px;}
+body.viewer-mode #form{display:none;}
+body.viewer-mode .brand{display:none;}
+body.viewer-mode #result{background:transparent;}
+body.viewer-mode .card{background:transparent; border:0; padding:0;}
+body.viewer-mode .linkrow{display:none;}
+body.viewer-mode #linkError{background:var(--surface); border:1px solid var(--border); padding:24px; color:var(--text);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><h1>YourFavVideo</h1></div>
+
+  <form class="card" id="form">
+    <div class="field">
+      <label for="src">url embed</label>
+      <input type="text" id="src" placeholder="https://example.com/embed/..." required>
+      <p class="field-error" id="srcError">URL harus diawali dengan http:// atau https://</p>
+    </div>
+    <div class="field">
+      <label for="title">judul (opsional)</label>
+      <input type="text" id="title" placeholder="Judul video">
+    </div>
+    <div class="field">
+      <label>posisi judul</label>
+      <div class="segmented" id="alignGroup" data-value="left">
+        <button type="button" data-v="left" class="active">Kiri</button>
+        <button type="button" data-v="center">Tengah</button>
+        <button type="button" data-v="right">Kanan</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>rasio</label>
+      <div class="segmented" id="ratioGroup" data-value="original">
+        <button type="button" data-v="original" class="active">Original</button>
+        <button type="button" data-v="1:1">1:1</button>
+        <button type="button" data-v="3:4">3:4</button>
+        <button type="button" data-v="4:3">4:3</button>
+        <button type="button" data-v="4:5">4:5</button>
+        <button type="button" data-v="9:16">9:16</button>
+        <button type="button" data-v="16:9">16:9</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>tema</label>
+      <div class="segmented" id="themeGroup" data-value="dark">
+        <button type="button" class="themebtn active" data-v="dark"><span class="dot" style="background:#d4a656"></span>Dark</button>
+        <button type="button" class="themebtn" data-v="light"><span class="dot" style="background:#2f6b52"></span>Light</button>
+        <button type="button" class="themebtn" data-v="pink"><span class="dot" style="background:#c23572"></span>Pink</button>
+        <button type="button" class="themebtn" data-v="monochrome"><span class="dot" style="background:#131313"></span>Mono</button>
+      </div>
+    </div>
+    <button type="submit" class="submit">Buat link</button>
+  </form>
+
+  <div id="result" class="card">
+    <div id="previewSection">
+      <div class="frame" id="frameBox">
+        <span class="corner tl"></span><span class="corner tr"></span>
+        <span class="corner bl"></span><span class="corner br"></span>
+        <div class="player" id="player"></div>
+      </div>
+      <h2 class="title" id="titleDisplay"></h2>
+    </div>
+    <div class="linkrow">
+      <input type="text" id="shareUrl" readonly>
+      <button type="button" class="copybtn" id="copyBtn">Salin</button>
+    </div>
+  </div>
+
+  <div id="linkError" class="card" style="display:none;">
+    Link ini tidak valid atau rusak, jadi ga bisa ditampilkan.
+  </div>
+</div>
+
+<div id="toast">Link disalin</div>
+
+<footer id="siteFooter"><a href="https://PASTE-URL-BERANDA-DISINI.com/" id="footerHome">YourFavVideo</a> © 2026 · SB99</footer>
+
+<script>
+const ratioMap = {original:'16/9','1:1':'1/1','3:4':'3/4','4:3':'4/3','4:5':'4/5','9:16':'9/16','16:9':'16/9'};
+const ratioNum = {original:16/9, '1:1':1, '3:4':3/4, '4:3':4/3, '4:5':4/5, '9:16':9/16, '16:9':16/9};
+const form = document.getElementById('form');
+const srcInput = document.getElementById('src');
+const titleInput = document.getElementById('title');
+const ratioGroup = document.getElementById('ratioGroup');
+const themeGroup = document.getElementById('themeGroup');
+const alignGroup = document.getElementById('alignGroup');
+const result = document.getElementById('result');
+const player = document.getElementById('player');
+const frameBox = document.getElementById('frameBox');
+const shareUrl = document.getElementById('shareUrl');
+const titleDisplay = document.getElementById('titleDisplay');
+const previewSection = document.getElementById('previewSection');
+const copyBtn = document.getElementById('copyBtn');
+const toast = document.getElementById('toast');
+const srcError = document.getElementById('srcError');
+const linkError = document.getElementById('linkError');
+
+// --- XOR + base64 buat obfuscate isi link, biar ga langsung kebaca mentah ---
+const XOR_KEY = 'yfv-2026-frame-key';
+function xorBytes(bytes){
+  const key = new TextEncoder().encode(XOR_KEY);
+  const out = new Uint8Array(bytes.length);
+  for(let i=0;i<bytes.length;i++) out[i] = bytes[i] ^ key[i % key.length];
+  return out;
+}
+function encodeToken(obj){
+  const bytes = xorBytes(new TextEncoder().encode(JSON.stringify(obj)));
+  let bin = '';
+  bytes.forEach(b => bin += String.fromCharCode(b));
+  return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function decodeToken(token){
+  try{
+    let b64 = token.replace(/-/g,'+').replace(/_/g,'/');
+    while(b64.length % 4) b64 += '=';
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+    const json = new TextDecoder().decode(xorBytes(bytes));
+    return JSON.parse(json);
+  } catch(e){ return null; }
+}
+
+function setupSegmented(group){
+  group.addEventListener('click', function(e){
+    const btn = e.target.closest('button');
+    if(!btn) return;
+    group.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    group.dataset.value = btn.dataset.v;
+  });
+}
+setupSegmented(ratioGroup);
+setupSegmented(themeGroup);
+setupSegmented(alignGroup);
+
+themeGroup.addEventListener('click', function(e){
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  document.documentElement.setAttribute('data-theme', btn.dataset.v);
+});
+
+function updateAlignAvailability(){
+  alignGroup.classList.toggle('disabled', titleInput.value.trim().length === 0);
+}
+titleInput.addEventListener('input', updateAlignAvailability);
+updateAlignAvailability();
+
+srcInput.addEventListener('input', function(){
+  srcInput.classList.remove('invalid');
+  srcError.classList.remove('show');
+});
+
+function extractSrc(raw){
+  raw = raw.trim();
+  const m = raw.match(/src=["']([^"']+)["']/i);
+  return m ? m[1] : raw;
+}
+
+// Cuma izinkan http/https. Nolak javascript:, data:, vbscript:, file:, dll
+// yang bisa dipakai buat nyuntik script atau konten berbahaya lewat iframe.
+function isSafeEmbedUrl(url){
+  if(typeof url !== 'string' || !url.trim()) return false;
+  try{
+    const u = new URL(url, location.href);
+    return u.protocol === 'https:' || u.protocol === 'http:';
+  }catch(e){ return false; }
+}
+
+let currentRatio = 'original';
+const MIN_PLAYER_WIDTH = 300; // biar kontrol bawaan player (seekbar, volume, dll) ga numpuk/ketimpa
+function sizePlayer(ratio){
+  const r = ratioNum[ratio] || ratioNum.original;
+  const heightBudget = Math.min(520, window.innerHeight * 0.6);
+  let w = heightBudget * r;
+  if(w < MIN_PLAYER_WIDTH) w = MIN_PLAYER_WIDTH;
+  const wPx = Math.round(w) + 'px';
+  frameBox.style.maxWidth = wPx;
+  titleDisplay.style.maxWidth = wPx;
+}
+window.addEventListener('resize', function(){ sizePlayer(currentRatio); });
+
+function render(src, ratio, theme, title, align){
+  document.documentElement.setAttribute('data-theme', theme);
+  currentRatio = ratio;
+  player.style.aspectRatio = ratioMap[ratio] || ratioMap.original;
+  sizePlayer(ratio);
+  player.innerHTML = '';
+  const iframe = document.createElement('iframe');
+  iframe.src = src;
+  iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+  iframe.allowFullscreen = true;
+  player.appendChild(iframe);
+  titleDisplay.textContent = title || '';
+  titleDisplay.style.textAlign = align || 'left';
+  if(title) document.title = title;
+  result.style.display = 'block';
+}
+
+function showToast(msg){
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(()=>toast.classList.remove('show'), 1800);
+}
+
+form.addEventListener('submit', function(e){
+  e.preventDefault();
+  const src = extractSrc(srcInput.value);
+
+  if(!isSafeEmbedUrl(src)){
+    srcInput.classList.add('invalid');
+    srcError.classList.add('show');
+    srcInput.focus();
+    return;
+  }
+  srcInput.classList.remove('invalid');
+  srcError.classList.remove('show');
+
+  const ratio = ratioGroup.dataset.value;
+  const theme = themeGroup.dataset.value;
+  const title = titleInput.value.trim();
+  const align = alignGroup.dataset.value;
+  const token = encodeToken({src, ratio, theme, title, align});
+  const shareLink = location.origin + location.pathname + '?d=' + token;
+  previewSection.style.display = 'none';
+  result.style.display = 'block';
+  shareUrl.value = shareLink;
+});
+
+copyBtn.addEventListener('click', function(){
+  shareUrl.select();
+  const done = () => showToast('Link disalin');
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(shareUrl.value).then(done).catch(()=>{
+      document.execCommand('copy'); done();
+    });
+  } else {
+    document.execCommand('copy'); done();
+  }
+});
+
+(function init(){
+  const params = new URLSearchParams(location.search);
+  const token = params.get('d');
+  if(!token) return;
+
+  const data = decodeToken(token);
+  const src = data && data.src;
+
+  if(!data || !isSafeEmbedUrl(src)){
+    document.body.classList.add('viewer-mode');
+    result.style.display = 'none';
+    linkError.style.display = 'block';
+    return;
+  }
+
+  const ratio = ratioMap.hasOwnProperty(data.ratio) ? data.ratio : 'original';
+  const theme = ['dark','light','pink','monochrome'].includes(data.theme) ? data.theme : 'dark';
+  const title = typeof data.title === 'string' ? data.title : '';
+  const align = ['left','center','right'].includes(data.align) ? data.align : 'left';
+
+  srcInput.value = src;
+  titleInput.value = title;
+  updateAlignAvailability();
+  ratioGroup.dataset.value = ratio;
+  themeGroup.dataset.value = theme;
+  alignGroup.dataset.value = align;
+  ratioGroup.querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.v===ratio));
+  themeGroup.querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.v===theme));
+  alignGroup.querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.v===align));
+  render(src, ratio, theme, title, align);
+  shareUrl.value = location.href;
+  document.body.classList.add('viewer-mode');
+})();
+</script>
+</body>
+</html>
