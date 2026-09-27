@@ -1,629 +1,304 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>YourFavVideo</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>YourFavVideo</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============ theme tokens ============ */
+:root{
+  --bg:#0d0f10; --surface:#17191b; --surface-2:#1e2123;
+  --text:#eae6de; --muted:#8a8f8c;
+  --accent:#ff8a3d; --accent-ink:#1a0f06;
+  --border:rgba(255,255,255,.09); --error:#e5484d;
+}
+/* ============ reset & base ============ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  min-height:100vh; background:var(--bg); color:var(--text);
+  font-family:'IBM Plex Sans',system-ui,sans-serif; line-height:1.5;
+  padding:calc(28px + env(safe-area-inset-top,0px)) 18px calc(72px + env(safe-area-inset-bottom,0px));
+  display:flex; flex-direction:column; align-items:center; justify-content:center; overflow-x:hidden;
+}
+body::before{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background-image:repeating-linear-gradient(0deg,rgba(255,255,255,.04) 0 1px,transparent 1px 46px),
+                    repeating-linear-gradient(90deg,rgba(255,255,255,.04) 0 1px,transparent 1px 46px);
+}
+/* ============ layout ============ */
+.wrap{position:relative;z-index:1;width:100%;max-width:520px;display:flex;flex-direction:column}
+body.viewer-mode .wrap{max-width:min(960px,92vw)}
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+/* ============ form ============ */
+.card{background:var(--surface);border:1px solid var(--border);padding:22px;margin-bottom:16px}
+label{display:block;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);margin-bottom:8px}
+.field{margin-bottom:18px}
+.field:last-child{margin-bottom:0}
+input[type="text"]{
+  width:100%;padding:13px;border:1px solid var(--border);background:var(--bg);color:var(--text);
+  font-family:'IBM Plex Mono',monospace;font-size:16px;transition:border-color .15s ease;
+}
+input[type="text"]:focus{outline:none;border-color:var(--accent)}
+input[type="text"].invalid{border-color:var(--error)}
+input[type="text"]::placeholder{color:var(--muted);opacity:.6}
+input[readonly]{color:var(--muted);cursor:pointer}
 
-  <style>
-    /* ============================================
-       THEME VARIABLES
-       ============================================ */
-    :root {
-      --bg: #121214;
-      --surface: #1a1b1e;
-      --text: #ece7de;
-      --muted: #8a877f;
-      --accent: #d4a656;
-      --border: rgba(255, 255, 255, 0.09);
-      --grid: rgba(255, 255, 255, 0.05);
-      --radius: 0;
-      --error: #c0392b;
-    }
+button{font-family:inherit;font-size:14px;font-weight:600;border:none;cursor:pointer}
+button.primary{
+  width:100%;padding:13px;background:var(--accent);color:var(--accent-ink);margin-top:6px;
+  transition:filter .15s ease;
+}
+button.primary:hover{filter:brightness(1.08)}
+button.primary:active{filter:brightness(.94)}
+button.ghost{padding:13px 16px;background:transparent;color:var(--text);border:1px solid var(--border);white-space:nowrap}
+button.ghost:hover{border-color:var(--accent);color:var(--accent)}
+.copyrow{display:flex;gap:8px}
+.copyrow input{flex:1;min-width:0}
 
-    /* ============================================
-       RESET & BASE
-       ============================================ */
-    *, *::before, *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+/* ============ utility ============ */
+.hidden{display:none}
 
-    html {
-      height: 100%;
-      -webkit-text-size-adjust: 100%;
-    }
+/* ============ share-link panel ============ */
+.linklabel{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);margin-bottom:8px}
 
-    body {
-      min-height: 100vh;
-      position: relative;
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-      padding: 40px 20px calc(88px + env(safe-area-inset-bottom, 0px));
-      padding-top: calc(40px + env(safe-area-inset-top, 0px));
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      overflow-x: hidden;
-      line-height: 1.5;
-    }
+/* ============ video player (viewer flow) ============ */
+.frame{position:relative;padding:2px}
+.filmedge{height:10px;background-image:repeating-linear-gradient(90deg,var(--surface-2) 0 6px,transparent 6px 14px);opacity:.8}
+.player{width:100%;background:#000;position:relative;aspect-ratio:16/9;overflow:hidden}
+.player>video,.player>iframe{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;border:0;display:block;background:#000;object-fit:contain}
 
-    body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      z-index: 0;
-      background-image:
-        repeating-linear-gradient(0deg, var(--grid) 0 1px, transparent 1px 44px),
-        repeating-linear-gradient(90deg, var(--grid) 0 1px, transparent 1px 44px),
-        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.35'/></svg>");
-      background-size: 44px 44px, 44px 44px, 140px 140px;
-      mix-blend-mode: overlay;
-    }
+/* viewer mode: only the video is shown, nothing else on the page */
+body.viewer-mode #form{display:none}
+body.viewer-mode #linkPanel{display:none!important}
 
-    /* ============================================
-       LAYOUT
-       ============================================ */
-    .wrap {
-      position: relative;
-      z-index: 1;
-      width: 100%;
-      max-width: 520px;
-    }
+/* ============ toast ============ */
+#toast{
+  position:fixed;left:50%;top:calc(18px + env(safe-area-inset-top,0px));transform:translate(-50%,-16px);
+  background:var(--text);color:var(--bg);padding:10px 16px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;
+  opacity:0;pointer-events:none;transition:opacity .2s ease,transform .2s ease;z-index:10;
+  max-width:90vw;text-align:center;
+}
+#toast.show{opacity:1;transform:translate(-50%,0)}
 
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 24px;
-      margin-bottom: 20px;
-      position: relative;
-    }
+/* ============ footer ============ */
+footer{
+  position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--surface);border-top:1px solid var(--border);
+  padding:11px 16px calc(11px + env(safe-area-inset-bottom,0px));text-align:center;
+  font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);
+}
+footer a{color:var(--text);text-decoration:none;font-weight:500}
+footer a:hover{color:var(--accent);text-decoration:underline}
 
-    /* ============================================
-       FORM
-       ============================================ */
-    label {
-      display: block;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 11px;
-      color: var(--muted);
-      margin-bottom: 8px;
-    }
-
-    .field {
-      margin-bottom: 20px;
-    }
-
-    .field:last-child {
-      margin-bottom: 0;
-    }
-
-    input[type="text"] {
-      width: 100%;
-      padding: 12px 13px;
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 13px;
-      transition: border-color 0.2s ease;
-    }
-
-    input[type="text"]:focus {
-      outline: none;
-      border-color: var(--accent);
-    }
-
-    input[type="text"].invalid {
-      border-color: var(--error);
-    }
-
-    input[type="text"]::placeholder {
-      color: var(--muted);
-      opacity: 0.6;
-    }
-
-    .field-error {
-      display: none;
-      color: var(--error);
-      font-size: 12px;
-      margin-top: 7px;
-      font-family: 'IBM Plex Sans', sans-serif;
-    }
-
-    .field-error.show {
-      display: block;
-    }
-
-    button.submit {
-      width: 100%;
-      padding: 13px;
-      border: none;
-      border-radius: var(--radius);
-      background: var(--accent);
-      color: var(--surface);
-      font-weight: 600;
-      font-size: 14px;
-      cursor: pointer;
-      font-family: inherit;
-      margin-top: 8px;
-      transition: opacity 0.2s ease;
-    }
-
-    button.submit:hover { opacity: 0.9; }
-    button.submit:active { opacity: 0.8; }
-
-    /* ============================================
-       VIDEO PLAYER
-       ============================================ */
-    #result { display: none; }
-
-    .frame {
-      position: relative;
-      padding: 12px;
-      margin: 0 auto;
-      width: 100%;
-      max-width: 100%;
-      overflow: hidden;
-    }
-
-    .corner {
-      position: absolute;
-      width: 18px;
-      height: 18px;
-      border: 2px solid var(--accent);
-      z-index: 2;
-      pointer-events: none;
-    }
-
-    .corner.tl { top: 0; left: 0; border-right: 0; border-bottom: 0; }
-    .corner.tr { top: 0; right: 0; border-left: 0; border-bottom: 0; }
-    .corner.bl { bottom: 0; left: 0; border-right: 0; border-top: 0; }
-    .corner.br { bottom: 0; right: 0; border-left: 0; border-top: 0; }
-
-    .player {
-      width: 100%;
-      background: #000;
-      overflow: hidden;
-      position: relative;
-      aspect-ratio: 16 / 9;
-      max-width: 100%;
-    }
-
-    .player > video,
-    .player > iframe {
-      position: absolute !important;
-      top: 0 !important;
-      left: 0 !important;
-      width: 100% !important;
-      height: 100% !important;
-      max-width: 100% !important;
-      max-height: 100% !important;
-      object-fit: contain;
-      border: 0;
-      display: block;
-      background: #000;
-    }
-
-    #playerError {
-      display: none;
-      text-align: center;
-      padding: 20px;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    #playerError.show { display: block; }
-
-    /* ============================================
-       TOAST
-       ============================================ */
-    #toast {
-      position: fixed;
-      left: 50%;
-      top: calc(24px + env(safe-area-inset-top, 0px));
-      transform: translate(-50%, -20px);
-      background: var(--text);
-      color: var(--bg);
-      padding: 11px 18px;
-      border-radius: var(--radius);
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 12px;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.2s ease, transform 0.2s ease;
-      z-index: 10;
-      white-space: nowrap;
-    }
-
-    #toast.show {
-      opacity: 1;
-      transform: translate(-50%, 0);
-    }
-
-    /* ============================================
-       FOOTER
-       ============================================ */
-    #siteFooter {
-      position: fixed;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      z-index: 5;
-      background: var(--surface);
-      border-top: 1px solid var(--border);
-      padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
-      text-align: center;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 11px;
-      color: var(--muted);
-    }
-
-    #siteFooter a {
-      color: var(--text);
-      text-decoration: none;
-      font-weight: 500;
-      transition: color 0.2s ease;
-    }
-
-    #siteFooter a:hover {
-      color: var(--accent);
-      text-decoration: underline;
-    }
-
-    /* ============================================
-       VIEWER MODE
-       ============================================ */
-    body.viewer-mode {
-      padding: 20px;
-      padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px));
-      align-items: center;
-    }
-
-    body.viewer-mode .wrap {
-      max-width: min(960px, 92vw);
-    }
-
-    body.viewer-mode #form { display: none; }
-
-    body.viewer-mode #result {
-      background: transparent;
-    }
-
-    body.viewer-mode .card {
-      background: transparent;
-      border: 0;
-      padding: 0;
-    }
-
-    body.viewer-mode #linkError {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      padding: 24px;
-      color: var(--text);
-    }
-  </style>
+/* ============ accessibility & responsive ============ */
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (max-width:400px){.card{padding:18px}.copyrow{flex-direction:column}}
+</style>
 </head>
 <body>
-  <div class="wrap">
-
-    <!-- Form Input -->
-    <form class="card" id="form" novalidate>
-      <div class="field">
-        <label for="src">url embed / video</label>
-        <input
-          type="text"
-          id="src"
-          placeholder="https://example.com/video.mp4"
-          required
-          autocomplete="off"
-          spellcheck="false"
-          aria-label="URL video atau embed"
-        >
-        <p class="field-error" id="srcError" role="alert">URL harus diawali dengan http:// atau https://</p>
-      </div>
-      <button type="submit" class="submit">Buat link</button>
-    </form>
-
-    <!-- Result Card (Video Preview) -->
-    <div id="result" class="card">
-      <div id="previewSection">
-        <div class="frame" id="frameBox">
-          <span class="corner tl" aria-hidden="true"></span>
-          <span class="corner tr" aria-hidden="true"></span>
-          <span class="corner bl" aria-hidden="true"></span>
-          <span class="corner br" aria-hidden="true"></span>
-          <div class="player" id="player" role="region" aria-label="Video player"></div>
-        </div>
-        <p class="field-error" id="playerError" role="alert">Video/embed gagal dimuat. Cek lagi URL-nya.</p>
-      </div>
+<div class="wrap">
+  <form class="card" id="form" novalidate>
+    <div class="field">
+      <label for="src">Tautan video</label>
+      <input type="text" id="src" placeholder="https://contoh.com/video.mp4" required autocomplete="off" spellcheck="false">
     </div>
+    <button type="submit" class="primary">Buat Tautan</button>
+  </form>
 
-    <!-- Error Card (Invalid Link) -->
-    <div id="linkError" class="card" style="display:none;" role="alert">
-      Link ini tidak valid atau rusak, jadi ga bisa ditampilkan.
+  <div id="linkPanel" class="card hidden">
+    <p class="linklabel">Tautan untuk dibagikan</p>
+    <div class="copyrow">
+      <input type="text" id="linkOutput" readonly aria-label="Tautan yang dapat dibagikan" onfocus="this.select()">
+      <button type="button" class="ghost" id="copyBtn">Salin</button>
     </div>
   </div>
 
-  <!-- Toast Notification -->
-  <div id="toast" role="status" aria-live="polite">Link disalin</div>
+  <div id="videoView" class="hidden">
+    <div class="frame" id="frameBox">
+      <div class="filmedge" aria-hidden="true"></div>
+      <div class="player" id="player" role="region" aria-label="Video player"></div>
+      <div class="filmedge" aria-hidden="true"></div>
+    </div>
+  </div>
+</div>
 
-  <!-- Footer -->
-  <footer id="siteFooter">
-    <a href="https://filemjepang.github.io/YFV/" id="footerHome">YourFavVideo</a> &copy; 2026
-  </footer>
+<div id="toast" role="status" aria-live="polite"></div>
 
-  <script>
-    /* ============================================
-       DOM REFERENCES
-       ============================================ */
-    const elements = {
-      form: document.getElementById('form'),
-      srcInput: document.getElementById('src'),
-      result: document.getElementById('result'),
-      player: document.getElementById('player'),
-      frameBox: document.getElementById('frameBox'),
-      toast: document.getElementById('toast'),
-      srcError: document.getElementById('srcError'),
-      linkError: document.getElementById('linkError'),
-      previewSection: document.getElementById('previewSection'),
-      playerError: document.getElementById('playerError'),
-    };
+<footer>
+  <a href="https://filemjepang.github.io/YFV/">YourFavVideo</a> &copy; 2026
+</footer>
 
-    /* ============================================
-       ENCRYPTION (XOR + Base64 URL-safe)
-       ============================================ */
-    const XOR_KEY = 'yfv-2026-frame-key';
+<script>
+/* ============ DOM references ============ */
+const el = {
+  form: document.getElementById('form'),
+  srcInput: document.getElementById('src'),
+  linkPanel: document.getElementById('linkPanel'),
+  videoView: document.getElementById('videoView'),
+  frameBox: document.getElementById('frameBox'),
+  player: document.getElementById('player'),
+  linkOutput: document.getElementById('linkOutput'),
+  copyBtn: document.getElementById('copyBtn'),
+  toast: document.getElementById('toast'),
+};
 
-    function xorBytes(bytes) {
-      const key = new TextEncoder().encode(XOR_KEY);
-      const out = new Uint8Array(bytes.length);
-      for (let i = 0; i < bytes.length; i++) {
-        out[i] = bytes[i] ^ key[i % key.length];
-      }
-      return out;
-    }
+/* ============ share-link token (obfuscation, not real encryption) ============ */
+const XOR_KEY = 'yfv-2026-frame-key';
+function xorBytes(bytes){
+  const key = new TextEncoder().encode(XOR_KEY);
+  const out = new Uint8Array(bytes.length);
+  for (let i=0;i<bytes.length;i++) out[i] = bytes[i] ^ key[i % key.length];
+  return out;
+}
+function encodeToken(obj){
+  const bytes = xorBytes(new TextEncoder().encode(JSON.stringify(obj)));
+  let bin=''; bytes.forEach(b=>bin+=String.fromCharCode(b));
+  return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function decodeToken(token){
+  try{
+    let b64 = token.replace(/-/g,'+').replace(/_/g,'/');
+    while (b64.length % 4) b64 += '=';
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+    return JSON.parse(new TextDecoder().decode(xorBytes(bytes)));
+  }catch(e){ return null; }
+}
 
-    function encodeToken(obj) {
-      const bytes = xorBytes(new TextEncoder().encode(JSON.stringify(obj)));
-      let bin = '';
-      bytes.forEach(b => bin += String.fromCharCode(b));
-      return btoa(bin)
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=+$/, '');
-    }
+/* ============ validation ============ */
+/**
+ * A link is only accepted if it explicitly starts with http:// or https://
+ * (no relative paths — those would silently resolve against location.href
+ * and pass validation even though they aren't a real link the user typed).
+ */
+function isSafeUrl(url){
+  if (typeof url !== 'string') return false;
+  const trimmed = url.trim();
+  if (!/^https?:\/\//i.test(trimmed)) return false;
+  try{ new URL(trimmed); return true; }
+  catch(e){ return false; }
+}
+const VIDEO_EXT = /\.(mp4|webm|ogg|ogv|mov|m4v)(\?.*)?(#.*)?$/i;
+function isDirectVideo(url){
+  try{ return VIDEO_EXT.test(new URL(url).pathname); }
+  catch(e){ return false; }
+}
 
-    function decodeToken(token) {
-      try {
-        let b64 = token.replace(/-/g, '+').replace(/_/g, '/');
-        while (b64.length % 4) b64 += '=';
-        const bin = atob(b64);
-        const bytes = new Uint8Array(bin.length);
-        for (let i = 0; i < bin.length; i++) {
-          bytes[i] = bin.charCodeAt(i);
-        }
-        const json = new TextDecoder().decode(xorBytes(bytes));
-        return JSON.parse(json);
-      } catch (e) {
-        return null;
-      }
-    }
+/* ============ UI feedback (toast + form/player error states) ============ */
+function showToast(msg, duration = 2400){
+  el.toast.textContent = msg;
+  el.toast.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(()=>el.toast.classList.remove('show'), duration);
+}
+function clearFormError(){ el.srcInput.classList.remove('invalid'); }
+function showFormError(msg){ el.srcInput.classList.add('invalid'); showToast(msg); }
+function showPlayerError(){ el.frameBox.classList.add('hidden'); showToast('Video gagal dimuat. Periksa kembali tautan Anda.', 4000); }
 
-    /* ============================================
-       URL UTILS
-       ============================================ */
-    function extractSrc(raw) {
-      raw = raw.trim();
-      const embedMatch = raw.match(/src=["']([^"']+)["']/i);
-      return embedMatch ? embedMatch[1] : raw;
-    }
+/* ============ video player ============ */
+function renderVideo(src){
+  el.player.innerHTML = '';
+  el.frameBox.classList.remove('hidden');
+  el.player.style.aspectRatio = '16 / 9';
 
-    function isSafeEmbedUrl(url) {
-      if (typeof url !== 'string' || !url.trim()) return false;
-      try {
-        const u = new URL(url, location.href);
-        return u.protocol === 'https:' || u.protocol === 'http:';
-      } catch (e) {
-        return false;
-      }
-    }
-
-    const VIDEO_EXTENSIONS = /\.(mp4|webm|ogg|ogv|mov|m4v)(\?.*)?(#.*)?$/i;
-
-    function isDirectVideo(url) {
-      try {
-        const u = new URL(url, location.href);
-        return VIDEO_EXTENSIONS.test(u.pathname);
-      } catch (e) {
-        return false;
-      }
-    }
-
-    /* ============================================
-       UI HELPERS
-       ============================================ */
-    function showToast(message) {
-      elements.toast.textContent = message;
-      elements.toast.classList.add('show');
-
-      if (showToast._timeout) {
-        clearTimeout(showToast._timeout);
-      }
-
-      showToast._timeout = setTimeout(() => {
-        elements.toast.classList.remove('show');
-      }, 2500);
-    }
-
-    function clearFormError() {
-      elements.srcInput.classList.remove('invalid');
-      elements.srcError.classList.remove('show');
-    }
-
-    function showFormError() {
-      elements.srcInput.classList.add('invalid');
-      elements.srcError.classList.add('show');
-    }
-
-    function showPlayerError() {
-      elements.frameBox.style.display = 'none';
-      elements.playerError.classList.add('show');
-    }
-
-    function hidePlayerError() {
-      elements.playerError.classList.remove('show');
-      elements.frameBox.style.display = '';
-    }
-
-    /* ============================================
-       VIDEO PLAYER
-       ============================================ */
-    function updatePlayerAspectRatio(videoEl) {
-      if (videoEl.videoWidth && videoEl.videoHeight) {
-        const ratio = videoEl.videoWidth / videoEl.videoHeight;
-        elements.player.style.aspectRatio = `${ratio} / 1`;
-      }
-    }
-
-    function renderVideo(src) {
-      elements.player.innerHTML = '';
-      hidePlayerError();
-      elements.player.style.aspectRatio = '16 / 9';
-
-      if (isDirectVideo(src)) {
-        const video = document.createElement('video');
-        video.controls = true;
-        video.playsInline = true;
-        video.disablePictureInPicture = true;
-        video.setAttribute('controlsList', 'nodownload noremoteplayback');
-        video.addEventListener('contextmenu', e => e.preventDefault());
-        video.addEventListener('error', showPlayerError);
-        video.addEventListener('loadedmetadata', () => updatePlayerAspectRatio(video));
-        video.src = src;
-        elements.player.appendChild(video);
-      } else {
-        const iframe = document.createElement('iframe');
-        iframe.src = src;
-        iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
-        iframe.allowFullscreen = true;
-        iframe.addEventListener('error', showPlayerError);
-        elements.player.appendChild(iframe);
-      }
-
-      elements.previewSection.style.display = '';
-      elements.result.style.display = 'block';
-    }
-
-    /* ============================================
-       CLIPBOARD
-       ============================================ */
-    function copyToClipboard(text) {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        return navigator.clipboard.writeText(text);
-      }
-
-      return new Promise((resolve, reject) => {
-        const textarea = document.createElement('textarea');
-        textarea.value = text;
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
-        textarea.style.left = '-9999px';
-        document.body.appendChild(textarea);
-        textarea.select();
-
-        try {
-          const success = document.execCommand('copy');
-          if (success) resolve();
-          else reject(new Error('Copy command failed'));
-        } catch (e) {
-          reject(e);
-        } finally {
-          document.body.removeChild(textarea);
-        }
-      });
-    }
-
-    /* ============================================
-       FULLSCREEN / ORIENTATION
-       ============================================ */
-    function isLandscapeMedia(el) {
-      if (el.videoWidth && el.videoHeight) {
-        return el.videoWidth >= el.videoHeight;
-      }
-      return true;
-    }
-
-    document.addEventListener('fullscreenchange', () => {
-      const fsEl = document.fullscreenElement;
-
-      if (fsEl && fsEl.tagName === 'VIDEO' && isLandscapeMedia(fsEl)) {
-        if (screen.orientation && screen.orientation.lock) {
-          screen.orientation.lock('landscape').catch(() => {});
-        }
-      } else if (!fsEl && screen.orientation && screen.orientation.unlock) {
-        try { screen.orientation.unlock(); } catch (e) {}
-      }
+  if (isDirectVideo(src)){
+    const v = document.createElement('video');
+    v.controls = true; v.playsInline = true; v.disablePictureInPicture = true;
+    v.setAttribute('controlsList','nodownload noremoteplayback');
+    v.addEventListener('contextmenu', e=>e.preventDefault());
+    v.addEventListener('error', showPlayerError);
+    v.addEventListener('loadedmetadata', ()=>{
+      if (v.videoWidth && v.videoHeight) el.player.style.aspectRatio = `${v.videoWidth} / ${v.videoHeight}`;
     });
+    v.src = src;
+    el.player.appendChild(v);
+  } else {
+    const f = document.createElement('iframe');
+    f.src = src;
+    f.referrerPolicy = 'no-referrer-when-downgrade';
+    f.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+    f.allowFullscreen = true;
+    f.addEventListener('error', showPlayerError);
+    el.player.appendChild(f);
+  }
+  el.videoView.classList.remove('hidden');
+}
 
-    /* ============================================
-       EVENT LISTENERS
-       ============================================ */
-    elements.srcInput.addEventListener('input', clearFormError);
+/* ============ clipboard ============ */
+function copyToClipboard(text){
+  if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext){
+    return navigator.clipboard.writeText(text);
+  }
+  return new Promise((resolve, reject)=>{
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position='fixed'; ta.style.opacity='0'; ta.style.left='-9999px';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy') ? resolve() : reject(new Error('copy failed')); }
+    catch(e){ reject(e); }
+    finally{ document.body.removeChild(ta); }
+  });
+}
 
-    elements.form.addEventListener('submit', (e) => {
-      e.preventDefault();
+/* ============ fullscreen orientation lock (landscape videos only) ============ */
+function isLandscapeMedia(v){ return !v.videoWidth || !v.videoHeight || v.videoWidth >= v.videoHeight; }
+document.addEventListener('fullscreenchange', ()=>{
+  const fs = document.fullscreenElement;
+  if (fs && fs.tagName === 'VIDEO' && isLandscapeMedia(fs)){
+    screen.orientation?.lock?.('landscape').catch(()=>{});
+  } else if (!fs){
+    try{ screen.orientation?.unlock?.(); }catch(e){}
+  }
+});
 
-      const src = extractSrc(elements.srcInput.value);
+/* ============ creator flow: generate + copy the share link ============ */
+el.srcInput.addEventListener('input', clearFormError);
 
-      if (!isSafeEmbedUrl(src)) {
-        showFormError();
-        elements.srcInput.focus();
-        return;
-      }
+el.form.addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const src = el.srcInput.value.trim();
 
-      clearFormError();
+  if (!isSafeUrl(src)){ showFormError('Tautan harus diawali dengan http:// atau https://'); el.srcInput.focus(); return; }
+  clearFormError();
 
-      const token = encodeToken({ src });
-      const shareLink = `${location.origin}${location.pathname}?d=${token}`;
+  const token = encodeToken({ src });
+  const shareLink = `${location.origin}${location.pathname}?d=${token}`;
+  el.linkOutput.value = shareLink;
+  el.linkPanel.classList.remove('hidden');
 
-      copyToClipboard(shareLink)
-        .then(() => showToast('Link berhasil disalin'))
-        .catch(() => showToast('Gagal menyalin link'));
-    });
+  copyToClipboard(shareLink)
+    .then(()=>showToast('Tautan berhasil disalin ke clipboard'))
+    .catch(()=>showToast('Gagal menyalin otomatis — salin secara manual di bawah'));
 
-    /* ============================================
-       INIT (Viewer Mode)
-       ============================================ */
-    (function init() {
-      const params = new URLSearchParams(location.search);
-      const token = params.get('d');
+  el.linkPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+});
 
-      if (!token) return;
+el.copyBtn.addEventListener('click', ()=>{
+  copyToClipboard(el.linkOutput.value)
+    .then(()=>showToast('Tautan berhasil disalin ke clipboard'))
+    .catch(()=>{ el.linkOutput.select(); showToast('Tekan Ctrl+C atau Cmd+C untuk menyalin'); });
+});
 
-      const data = decodeToken(token);
-      const src = data && data.src;
+/* ============ viewer flow: decode ?d= token and play the video ============ */
+(function init(){
+  const token = new URLSearchParams(location.search).get('d');
+  if (!token) return;
 
-      if (!data || !isSafeEmbedUrl(src)) {
-        document.body.classList.add('viewer-mode');
-        elements.result.style.display = 'none';
-        elements.linkError.style.display = 'block';
-        return;
-      }
+  const data = decodeToken(token);
+  const src = data && data.src;
+  document.body.classList.add('viewer-mode');
 
-      elements.srcInput.value = src;
-      renderVideo(src);
-      document.body.classList.add('viewer-mode');
-    })();
-  </script>
+  if (!data || !isSafeUrl(src)){
+    showToast('Tautan ini rusak atau tidak valid.', 4000);
+    return;
+  }
+  renderVideo(src);
+})();
+</script>
 </body>
 </html>
